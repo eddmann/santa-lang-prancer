@@ -8,7 +8,22 @@ import { Lexer } from 'santa-lang/lexer';
 import { Parser } from 'santa-lang/parser';
 import { evaluate, O } from 'santa-lang/evaluator';
 import printSourcePreview from './printSourcePreview';
-import io from './io';
+import io, { enableConsoleCapture, disableConsoleCapture } from './io';
+import {
+  type OutputMode,
+  formatRunJson,
+  formatTestJson,
+  formatErrorJson,
+  isSolutionSource,
+  createSolutionInitial,
+  createScriptInitial,
+  createTestInitial,
+  replacePatch,
+  addPatch,
+  writeLine,
+  writePatches,
+  type JsonTestPartResult,
+} from './output';
 import pkg from '../package.json';
 
 // Parse command line arguments
@@ -36,12 +51,15 @@ function printHelp() {
   console.log('    santa-cli -e <CODE>             Evaluate inline script');
   console.log('    santa-cli -t <SCRIPT>           Run test suite');
   console.log('    santa-cli -t -s <SCRIPT>        Run tests including @slow');
+  console.log('    santa-cli -o json <SCRIPT>      Output as JSON');
+  console.log('    santa-cli -o jsonl <SCRIPT>     Output as JSON Lines (streaming)');
   console.log('    santa-cli -r                    Start REPL');
   console.log('    santa-cli -h                    Show this help');
   console.log('    cat file | santa-cli            Read from stdin');
   console.log();
   console.log('OPTIONS:');
   console.log('    -e, --eval <CODE>    Evaluate inline script');
+  console.log('    -o, --output FORMAT  Output format: text (default), json, jsonl');
   console.log('    -t, --test           Run the solution\'s test suite');
   console.log('    -s, --slow           Include @slow tests (use with -t)');
   console.log('    -r, --repl           Start interactive REPL');
@@ -112,6 +130,19 @@ if (args.includes('-v') || args.includes('--version')) {
 if (args.includes('-r') || args.includes('--repl')) {
   runRepl();
 } else {
+  // Parse output mode
+  const outputIndex = args.findIndex(arg => arg === '-o' || arg === '--output');
+  let outputMode: OutputMode = 'text';
+  if (outputIndex !== -1 && args[outputIndex + 1]) {
+    const format = args[outputIndex + 1];
+    if (format === 'text' || format === 'json' || format === 'jsonl') {
+      outputMode = format;
+    } else {
+      console.error(`Error: Invalid output format '${format}'. Use: text, json, jsonl`);
+      process.exit(1);
+    }
+  }
+
   // Run script or tests
   const isTestRun = args.includes('-t') || args.includes('--test');
   const includeSlow = args.includes('-s') || args.includes('--slow');
@@ -155,81 +186,298 @@ if (args.includes('-r') || args.includes('--repl')) {
     process.chdir(path.dirname(realpathSync(filename)));
   }
 
+  // Enable console capture for JSON/JSONL modes
+  if (outputMode !== 'text') {
+    enableConsoleCapture();
+  }
+
   try {
     if (!isTestRun) {
+      // Run mode
       const result = run(source, io);
 
-      if ('value' in result) {
-        console.log(result.value);
+      if (outputMode === 'text') {
+        // Text output (existing behavior)
+        if ('value' in result) {
+          console.log(result.value);
+          process.exit(0);
+        }
+
+        if (result.partOne) {
+          console.log(
+            'Part 1: \x1b[32m%s\x1b[0m \x1b[90m%sms\x1b[0m',
+            result.partOne.value,
+            result.partOne.duration
+          );
+        }
+
+        if (result.partTwo) {
+          console.log(
+            'Part 2: \x1b[32m%s\x1b[0m \x1b[90m%sms\x1b[0m',
+            result.partTwo.value,
+            result.partTwo.duration
+          );
+        }
+
+        process.exit(0);
+      } else if (outputMode === 'json') {
+        // JSON output
+        const consoleEntries = disableConsoleCapture();
+        const output = formatRunJson(result, consoleEntries);
+        console.log(JSON.stringify(output));
+        process.exit(0);
+      } else {
+        // JSONL output
+        const consoleEntries = disableConsoleCapture();
+        const { hasPartOne, hasPartTwo } = isSolutionSource(source);
+        const isSolution = hasPartOne || hasPartTwo;
+
+        if (isSolution) {
+          // Solution streaming
+          const initial = createSolutionInitial(hasPartOne, hasPartTwo);
+          writeLine(initial);
+          writePatches([replacePatch('/status', 'running')]);
+
+          // Emit console entries
+          for (const entry of consoleEntries) {
+            writePatches([addPatch('/console/-', entry)]);
+          }
+
+          // Emit part results
+          if ('partOne' in result && result.partOne && hasPartOne) {
+            writePatches([replacePatch('/part_one/status', 'running')]);
+            writePatches([
+              replacePatch('/part_one/status', 'complete'),
+              replacePatch('/part_one/value', result.partOne.value),
+              replacePatch('/part_one/duration_ms', result.partOne.duration),
+            ]);
+          }
+
+          if ('partTwo' in result && result.partTwo && hasPartTwo) {
+            writePatches([replacePatch('/part_two/status', 'running')]);
+            writePatches([
+              replacePatch('/part_two/status', 'complete'),
+              replacePatch('/part_two/value', result.partTwo.value),
+              replacePatch('/part_two/duration_ms', result.partTwo.duration),
+            ]);
+          }
+
+          writePatches([replacePatch('/status', 'complete')]);
+        } else {
+          // Script streaming
+          const initial = createScriptInitial();
+          writeLine(initial);
+          writePatches([replacePatch('/status', 'running')]);
+
+          // Emit console entries
+          for (const entry of consoleEntries) {
+            writePatches([addPatch('/console/-', entry)]);
+          }
+
+          // Emit completion
+          if ('value' in result) {
+            writePatches([
+              replacePatch('/status', 'complete'),
+              replacePatch('/value', result.value),
+              replacePatch('/duration_ms', result.duration),
+            ]);
+          }
+        }
+
         process.exit(0);
       }
+    } else {
+      // Test mode
+      const testCases = runTests(source, io, includeSlow);
+      const { hasPartOne, hasPartTwo } = isSolutionSource(source);
 
-      if (result.partOne) {
-        console.log(
-          'Part 1: \x1b[32m%s\x1b[0m \x1b[90m%sms\x1b[0m',
-          result.partOne.value,
-          result.partOne.duration
+      if (outputMode === 'text') {
+        // Text output (existing behavior)
+        let exitCode = 0;
+
+        for (const [idx, testCase] of Object.entries(testCases)) {
+          if (Number(idx) > 0) console.log();
+
+          if (testCase.skipped) {
+            console.log('\x1b[4mTestcase #%s\x1b[0m \x1b[33m(skipped)\x1b[0m', Number(idx) + 1);
+            continue;
+          }
+
+          if (testCase.slow) {
+            console.log('\x1b[4mTestcase #%s\x1b[0m \x1b[33m(slow)\x1b[0m', Number(idx) + 1);
+          } else {
+            console.log('\x1b[4mTestcase #%s\x1b[0m', Number(idx) + 1);
+          }
+
+          if (!testCase.partOne && !testCase.partTwo) {
+            console.log('No expectations');
+            continue;
+          }
+
+          if (testCase.partOne) {
+            if (testCase.partOne.hasPassed) {
+              console.log('Part 1: %s \x1b[32m✔\x1b[0m', testCase.partOne.actual);
+            } else {
+              console.log(
+                'Part 1: %s \x1b[31m✘ (Expected: %s)\x1b[0m',
+                testCase.partOne.actual,
+                testCase.partOne.expected
+              );
+              exitCode = 3;
+            }
+          }
+
+          if (testCase.partTwo) {
+            if (testCase.partTwo.hasPassed) {
+              console.log('Part 2: %s \x1b[32m✔\x1b[0m', testCase.partTwo.actual);
+            } else {
+              console.log(
+                'Part 2: %s \x1b[31m✘ (Expected: %s)\x1b[0m',
+                testCase.partTwo.actual,
+                testCase.partTwo.expected
+              );
+              exitCode = 3;
+            }
+          }
+        }
+
+        process.exit(exitCode);
+      } else if (outputMode === 'json') {
+        // JSON output
+        const consoleEntries = disableConsoleCapture();
+        const output = formatTestJson(testCases, hasPartOne, hasPartTwo, consoleEntries);
+        console.log(JSON.stringify(output));
+
+        // Exit with code 3 if any tests failed
+        const hasFailures = testCases.some(
+          tc =>
+            !tc.skipped &&
+            ((tc.partOne && !tc.partOne.hasPassed) || (tc.partTwo && !tc.partTwo.hasPassed))
         );
-      }
-
-      if (result.partTwo) {
-        console.log(
-          'Part 2: \x1b[32m%s\x1b[0m \x1b[90m%sms\x1b[0m',
-          result.partTwo.value,
-          result.partTwo.duration
-        );
-      }
-
-      process.exit(0);
-    }
-
-    let exitCode = 0;
-
-    for (const [idx, testCase] of Object.entries(runTests(source, io, includeSlow))) {
-      if (Number(idx) > 0) console.log();
-
-      if (testCase.slow) {
-        console.log('\x1b[4mTestcase #%s\x1b[0m \x1b[33m(slow)\x1b[0m', Number(idx) + 1);
+        process.exit(hasFailures ? 3 : 0);
       } else {
-        console.log('\x1b[4mTestcase #%s\x1b[0m', Number(idx) + 1);
-      }
+        // JSONL output
+        const consoleEntries = disableConsoleCapture();
 
-      if (!testCase.partOne && !testCase.partTwo) {
-        console.log('No expectations');
-        continue;
-      }
+        // Emit initial state
+        const initial = createTestInitial(testCases);
+        writeLine(initial);
+        writePatches([replacePatch('/status', 'running')]);
 
-      if (testCase.partOne) {
-        if (testCase.partOne.hasPassed) {
-          console.log('Part 1: %s \x1b[32m✔\x1b[0m', testCase.partOne.actual);
-        } else {
-          console.log(
-            'Part 1: %s \x1b[31m✘ (Expected: %s)\x1b[0m',
-            testCase.partOne.actual,
-            testCase.partOne.expected
-          );
-          exitCode = 3;
+        // Emit console entries
+        for (const entry of consoleEntries) {
+          writePatches([addPatch('/console/-', entry)]);
         }
-      }
 
-      if (testCase.partTwo) {
-        if (testCase.partTwo.hasPassed) {
-          console.log('Part 2: %s \x1b[32m✔\x1b[0m', testCase.partTwo.actual);
-        } else {
-          console.log(
-            'Part 2: %s \x1b[31m✘ (Expected: %s)\x1b[0m',
-            testCase.partTwo.actual,
-            testCase.partTwo.expected
-          );
-          exitCode = 3;
+        // Emit test results
+        let passed = 0;
+        let failed = 0;
+        let skipped = 0;
+
+        for (let i = 0; i < testCases.length; i++) {
+          const tc = testCases[i];
+          const pathPrefix = `/tests/${i}`;
+
+          if (tc.skipped) {
+            skipped++;
+            writePatches([
+              replacePatch(`${pathPrefix}/status`, 'skipped'),
+              replacePatch('/summary/skipped', skipped),
+            ]);
+          } else {
+            // Emit running
+            writePatches([replacePatch(`${pathPrefix}/status`, 'running')]);
+
+            // Determine result
+            const partOnePassed = tc.partOne === undefined || tc.partOne.hasPassed;
+            const partTwoPassed = tc.partTwo === undefined || tc.partTwo.hasPassed;
+            const allPassed = partOnePassed && partTwoPassed;
+
+            if (allPassed) {
+              passed++;
+            } else {
+              failed++;
+            }
+
+            // Build patches
+            const patches = [replacePatch(`${pathPrefix}/status`, 'complete')];
+
+            if (hasPartOne && tc.partOne) {
+              const partResult: JsonTestPartResult = {
+                passed: tc.partOne.hasPassed,
+                expected: tc.partOne.expected,
+                actual: tc.partOne.actual,
+              };
+              patches.push(replacePatch(`${pathPrefix}/part_one`, partResult));
+            }
+
+            if (hasPartTwo && tc.partTwo) {
+              const partResult: JsonTestPartResult = {
+                passed: tc.partTwo.hasPassed,
+                expected: tc.partTwo.expected,
+                actual: tc.partTwo.actual,
+              };
+              patches.push(replacePatch(`${pathPrefix}/part_two`, partResult));
+            }
+
+            if (allPassed) {
+              patches.push(replacePatch('/summary/passed', passed));
+            } else {
+              patches.push(replacePatch('/summary/failed', failed));
+            }
+
+            writePatches(patches);
+          }
         }
+
+        // Emit completion
+        const success = failed === 0;
+        writePatches([replacePatch('/status', 'complete'), replacePatch('/success', success)]);
+
+        process.exit(success ? 0 : 3);
       }
     }
-
-    process.exit(exitCode);
   } catch (err: any) {
-    printSourcePreview(filename || '<stdin>', source, err.line, err.column);
-    console.log('\x1b[32m%s\x1b[0m', err.message);
-    process.exit(2);
+    if (outputMode === 'text') {
+      // Text error output (existing behavior)
+      printSourcePreview(filename || '<stdin>', source, err.line, err.column);
+      console.log('\x1b[32m%s\x1b[0m', err.message);
+      process.exit(2);
+    } else if (outputMode === 'json') {
+      // JSON error output
+      disableConsoleCapture();
+      const output = formatErrorJson(err);
+      console.log(JSON.stringify(output));
+      process.exit(2);
+    } else {
+      // JSONL error output
+      disableConsoleCapture();
+      const { hasPartOne, hasPartTwo } = isSolutionSource(source);
+      const isSolution = hasPartOne || hasPartTwo;
+
+      // Emit initial state if not already done
+      if (isTestRun) {
+        const initial = createTestInitial([]);
+        writeLine(initial);
+        writePatches([replacePatch('/status', 'running')]);
+      } else if (isSolution) {
+        const initial = createSolutionInitial(hasPartOne, hasPartTwo);
+        writeLine(initial);
+        writePatches([replacePatch('/status', 'running')]);
+      } else {
+        const initial = createScriptInitial();
+        writeLine(initial);
+        writePatches([replacePatch('/status', 'running')]);
+      }
+
+      // Emit error patch
+      const errorOutput = {
+        message: err.message,
+        location: { line: err.line + 1, column: err.column + 1 },
+        stack: [],
+      };
+      writePatches([replacePatch('/status', 'error'), addPatch('/error', errorOutput)]);
+      process.exit(2);
+    }
   }
 }

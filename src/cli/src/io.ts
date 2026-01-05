@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs';
+import type { ConsoleEntry } from './output';
 
 const parseUrl = (path: string): URL | null => {
   try {
@@ -7,6 +8,21 @@ const parseUrl = (path: string): URL | null => {
     return null;
   }
 };
+
+// Console capture state
+let consoleBuffer: ConsoleEntry[] | null = null;
+let captureStartTime: number = 0;
+
+export function enableConsoleCapture(): void {
+  captureStartTime = Date.now();
+  consoleBuffer = [];
+}
+
+export function disableConsoleCapture(): ConsoleEntry[] {
+  const entries = consoleBuffer || [];
+  consoleBuffer = null;
+  return entries;
+}
 
 const readAoC = (url: URL, path: string): string => {
   const year = url.host;
@@ -68,5 +84,21 @@ export default {
 
     return readUrl(path);
   },
-  output: (args: string[]) => console.log(...args),
+  output: (args: string[]) => {
+    // Spec: no event for puts() with no args
+    if (args.length === 0) return;
+
+    const message = args.join(' ');
+
+    if (consoleBuffer !== null) {
+      // Capture mode: add to buffer
+      consoleBuffer.push({
+        timestamp_ms: Date.now() - captureStartTime,
+        message,
+      });
+    } else {
+      // Normal mode: print to stdout
+      console.log(message);
+    }
+  },
 };

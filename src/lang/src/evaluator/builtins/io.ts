@@ -1,6 +1,15 @@
 import { AST } from '../../parser';
 import O from '../object';
 
+// Format a value for puts() output.
+// Strings are displayed without surrounding quotes (unlike inspect()).
+const formatPutsValue = (value: O.Obj): string => {
+  if (value instanceof O.Str) {
+    return value.value;
+  }
+  return value.inspect();
+};
+
 const puts: O.BuiltinFuncTemplate = {
   parameters: [
     {
@@ -14,7 +23,7 @@ const puts: O.BuiltinFuncTemplate = {
   body: (environment: O.Environment) => {
     environment
       .getIO()
-      .output([...environment.getVariable('values').items.map(arg => arg.inspect())]);
+      .output([...environment.getVariable('values').items.map(formatPutsValue)]);
     return O.NIL;
   },
 };

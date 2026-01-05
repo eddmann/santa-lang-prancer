@@ -165,6 +165,7 @@ type TestCase = {
   partOne?: TestCaseResult;
   partTwo?: TestCaseResult;
   slow: boolean;
+  skipped: boolean;
 };
 
 type TestCaseResult = {
@@ -181,8 +182,9 @@ export const runTests = (source: string, io: O.IO, includeSlow: boolean = false)
   for (const test of environment.getSection('test')) {
     const isSlow = test.hasAttribute('slow');
 
-    // Skip slow tests unless explicitly requested
+    // Return slow tests as skipped unless explicitly requested
     if (isSlow && !includeSlow) {
+      results.push({ slow: true, skipped: true });
       continue;
     }
 
@@ -232,7 +234,7 @@ export const runTests = (source: string, io: O.IO, includeSlow: boolean = false)
     const testInputResult =
       testInput.length === 1 ? evaluateSection(testInput[0], testEnvironment) : null;
 
-    const testCase: TestCase = { slow: isSlow };
+    const testCase: TestCase = { slow: isSlow, skipped: false };
 
     if (partOne && partOneExpected.length === 1) {
       const partOneExpectedResult = evaluateSection(partOneExpected[0], testEnvironment);
