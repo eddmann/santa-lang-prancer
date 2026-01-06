@@ -34,7 +34,6 @@ Source Code → Lexer → Parser → Evaluator → Result
 | **Parser**      | Builds an Abstract Syntax Tree (AST)                 |
 | **Evaluator**   | Tree-walking interpreter that executes the AST       |
 | **Environment** | Manages variable bindings and closures across scopes |
-| **Builtins**    | Rich library of built-in functions                    |
 
 For detailed implementation internals, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
