@@ -19,29 +19,38 @@ jobs:
     steps:
       - name: Update release content
         id: update-release-content
-        uses: release-drafter/release-drafter@v5
+        uses: release-drafter/release-drafter@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           commitish: 'draft-release'
 
   cli:
-    needs: update-draft-release
     name: Build CLI
-    uses: eddmann/santa-lang-prancer/.github/workflows/build-cli.yml@draft-release
+    needs: update-draft-release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-cli.yml
     with:
       release-tag: ${{ needs.update-draft-release.outputs.tag_name }}
+    secrets: inherit
 
   lambda:
-    needs: update-draft-release
     name: Build Lambda
-    uses: eddmann/santa-lang-prancer/.github/workflows/build-lambda.yml@draft-release
+    needs: update-draft-release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-lambda.yml
     with:
       release-tag: ${{ needs.update-draft-release.outputs.tag_name }}
+    secrets: inherit
 
   web:
-    needs: update-draft-release
     name: Build Web
-    uses: eddmann/santa-lang-prancer/.github/workflows/build-web.yml@draft-release
+    needs: update-draft-release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-web.yml
     with:
       release-tag: ${{ needs.update-draft-release.outputs.tag_name }}
+    secrets: inherit
