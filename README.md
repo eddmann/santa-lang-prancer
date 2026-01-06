@@ -57,10 +57,6 @@ Download pre-built binaries from [GitHub Releases](https://github.com/eddmann/sa
 | macOS (Intel)         | `santa-lang-prancer-cli-{version}-macos-amd64` |
 | macOS (Apple Silicon) | `santa-lang-prancer-cli-{version}-macos-arm64` |
 
-### Web Editor
-
-Try santa-lang in your browser: [eddmann.com/santa-lang-prancer](https://eddmann.com/santa-lang-prancer/)
-
 ### AWS Lambda
 
 Lambda layer available: `santa-lang-prancer-lambda-{version}.zip`
