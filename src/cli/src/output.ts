@@ -12,80 +12,80 @@
 
 export type OutputMode = 'text' | 'json' | 'jsonl';
 
-export interface ConsoleEntry {
+export type ConsoleEntry = {
   timestamp_ms: number;
   message: string;
-}
+};
 
-export interface ErrorLocation {
+export type ErrorLocation = {
   line: number;
   column: number;
-}
+};
 
-export interface StackFrame {
+export type StackFrame = {
   function: string;
   line: number;
   column: number;
-}
+};
 
-export interface JsonPartResult {
+export type JsonPartResult = {
   status: 'complete';
   value: string;
   duration_ms: number;
-}
+};
 
-export interface JsonTestPartResult {
+export type JsonTestPartResult = {
   passed: boolean;
   expected: string;
   actual: string;
-}
+};
 
-export interface JsonTestCase {
+export type JsonTestCase = {
   index: number;
   slow: boolean;
   status: 'complete' | 'skipped';
   part_one?: JsonTestPartResult;
   part_two?: JsonTestPartResult;
-}
+};
 
-export interface TestSummary {
+export type TestSummary = {
   total: number;
   passed: number;
   failed: number;
   skipped: number;
-}
+};
 
-export interface JsonSolutionOutput {
+export type JsonSolutionOutput = {
   type: 'solution';
   status: 'complete';
   part_one?: JsonPartResult;
   part_two?: JsonPartResult;
   console: ConsoleEntry[];
-}
+};
 
-export interface JsonScriptOutput {
+export type JsonScriptOutput = {
   type: 'script';
   status: 'complete';
   value: string;
   duration_ms: number;
   console: ConsoleEntry[];
-}
+};
 
-export interface JsonTestOutput {
+export type JsonTestOutput = {
   type: 'test';
   status: 'complete';
   success: boolean;
   summary: TestSummary;
   tests: JsonTestCase[];
   console: ConsoleEntry[];
-}
+};
 
-export interface JsonErrorOutput {
+export type JsonErrorOutput = {
   type: 'error';
   message: string;
   location: ErrorLocation;
   stack: StackFrame[];
-}
+};
 
 // ============================================================================
 // Result Types (from runner)
@@ -236,11 +236,11 @@ export function formatTestJson(
   };
 }
 
-export interface ErrorInfo {
+export type ErrorInfo = {
   message: string;
   line: number;
   column: number;
-}
+};
 
 export function formatErrorJson(error: ErrorInfo): JsonErrorOutput {
   return {
@@ -266,50 +266,50 @@ export function isSolutionSource(source: string): { hasPartOne: boolean; hasPart
 // JSONL Streaming Support
 // ============================================================================
 
-export interface JsonPatch {
+export type JsonPatch = {
   op: 'replace' | 'add';
   path: string;
   value: unknown;
-}
+};
 
-export interface JsonlPartInitial {
+export type JsonlPartInitial = {
   status: 'pending';
   value: null;
   duration_ms: null;
-}
+};
 
-export interface JsonlSolutionInitial {
+export type JsonlSolutionInitial = {
   type: 'solution';
   status: 'pending';
   part_one?: JsonlPartInitial;
   part_two?: JsonlPartInitial;
   console: ConsoleEntry[];
-}
+};
 
-export interface JsonlScriptInitial {
+export type JsonlScriptInitial = {
   type: 'script';
   status: 'pending';
   value: null;
   duration_ms: null;
   console: ConsoleEntry[];
-}
+};
 
-export interface JsonlTestCaseInitial {
+export type JsonlTestCaseInitial = {
   index: number;
   slow: boolean;
   status: 'pending';
   part_one: null;
   part_two: null;
-}
+};
 
-export interface JsonlTestInitial {
+export type JsonlTestInitial = {
   type: 'test';
   status: 'pending';
   success: null;
   summary: TestSummary;
   tests: JsonlTestCaseInitial[];
   console: ConsoleEntry[];
-}
+};
 
 export function createSolutionInitial(hasPartOne: boolean, hasPartTwo: boolean): JsonlSolutionInitial {
   const initial: JsonlSolutionInitial = {

@@ -1,10 +1,10 @@
-export interface Obj {
+export type Obj = {
   inspect(): string;
   isTruthy(): boolean;
   getName(): string;
-}
+};
 
-export interface ValueObj extends Obj {
+export type ValueObj = Obj & {
   hashCode(): number;
   equals(that: Obj): boolean;
-}
+};
