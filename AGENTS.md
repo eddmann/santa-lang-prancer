@@ -8,6 +8,17 @@ This is **Prancer**, a santa-lang reindeer implementation. santa-lang is a funct
 - Modular packages: `lang` (core), `cli` (binary), `web` (Next.js UI), `lambda` (AWS)
 - Batteries-included standard library for AoC patterns
 
+## Makefile
+
+**Always use Makefile targets.** Never run build tools directly.
+
+- Run `make help` to see all available targets
+- `make lang/test` for running language tests
+- `make can-release` before submitting a PR (runs all tests)
+- All builds run inside Docker for reproducibility
+
+This ensures consistent, reproducible builds across all environments.
+
 ## Setup
 
 ```bash
@@ -20,13 +31,14 @@ make shell              # Enter Docker build environment
 ## Common Commands
 
 ```bash
-make help               # Show all targets
+make help               # Show available targets
 make lang/test          # Run language tests
 make cli/test           # Run CLI tests
 make web/test           # Run web linting (ESLint)
 make cli/build          # Build cross-platform CLI binaries
 make web/build          # Build Next.js static site
 make lambda/build       # Build Lambda layer
+make can-release        # Run before submitting PR (all tests)
 ```
 
 ## Code Conventions
@@ -40,13 +52,7 @@ make lambda/build       # Build Lambda layer
 
 ## Tests & CI
 
-```bash
-bun test                # Run all tests in src/lang/
-make lang/test          # Same via Docker
-make cli/test           # CLI tests
-```
-
-- **CI** (`test.yml`): Runs lang tests on ubuntu-24.04
+- **CI** (`test.yml`): Runs `make can-release` on ubuntu-24.04
 - **Build** (`build.yml`): CLI binaries, Docker, web static, Lambda layer
 - Auto-updates `draft-release` branch after tests pass
 
