@@ -12,6 +12,11 @@
 
 export type OutputMode = 'text' | 'json' | 'jsonl';
 
+export type JsonVersionOutput = {
+  reindeer: string;
+  version: string;
+};
+
 export type ConsoleEntry = {
   timestamp_ms: number;
   message: string;

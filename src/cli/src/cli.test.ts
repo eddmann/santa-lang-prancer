@@ -368,4 +368,20 @@ describe('help and version', () => {
     expect(stdout).toContain('santa-lang');
     expect(stdout).toContain('Prancer');
   });
+
+  test('version flag with json output', () => {
+    const { exitCode, stdout } = runCli(['-o', 'json', '-v']);
+    expect(exitCode).toBe(0);
+    const output = JSON.parse(stdout.trim());
+    expect(output.reindeer).toBe('Prancer');
+    expect(output.version).toBeDefined();
+  });
+
+  test('version flag with jsonl output', () => {
+    const { exitCode, stdout } = runCli(['-o', 'jsonl', '--version']);
+    expect(exitCode).toBe(0);
+    const output = JSON.parse(stdout.trim());
+    expect(output.reindeer).toBe('Prancer');
+    expect(output.version).toBeDefined();
+  });
 });

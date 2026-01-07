@@ -120,9 +120,29 @@ if (args.includes('-h') || args.includes('--help')) {
   process.exit(0);
 }
 
+// Parse output mode (needed for version and other commands)
+const outputIndex = args.findIndex(arg => arg === '-o' || arg === '--output');
+let outputMode: OutputMode = 'text';
+if (outputIndex !== -1 && args[outputIndex + 1]) {
+  const format = args[outputIndex + 1];
+  if (format === 'text' || format === 'json' || format === 'jsonl') {
+    outputMode = format;
+  } else {
+    console.error(`Error: Invalid output format '${format}'. Use: text, json, jsonl`);
+    process.exit(1);
+  }
+}
+
 // Check for version flag
 if (args.includes('-v') || args.includes('--version')) {
-  console.log(`santa-lang Prancer ${pkg.version}`);
+  if (outputMode === 'text') {
+    console.log(`santa-lang Prancer ${pkg.version}`);
+  } else {
+    console.log(JSON.stringify({
+      reindeer: 'Prancer',
+      version: pkg.version
+    }));
+  }
   process.exit(0);
 }
 
@@ -130,18 +150,6 @@ if (args.includes('-v') || args.includes('--version')) {
 if (args.includes('-r') || args.includes('--repl')) {
   runRepl();
 } else {
-  // Parse output mode
-  const outputIndex = args.findIndex(arg => arg === '-o' || arg === '--output');
-  let outputMode: OutputMode = 'text';
-  if (outputIndex !== -1 && args[outputIndex + 1]) {
-    const format = args[outputIndex + 1];
-    if (format === 'text' || format === 'json' || format === 'jsonl') {
-      outputMode = format;
-    } else {
-      console.error(`Error: Invalid output format '${format}'. Use: text, json, jsonl`);
-      process.exit(1);
-    }
-  }
 
   // Run script or tests
   const isTestRun = args.includes('-t') || args.includes('--test');
