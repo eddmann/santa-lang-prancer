@@ -202,6 +202,29 @@ if (args.includes('-r') || args.includes('--repl')) {
   try {
     if (!isTestRun) {
       // Run mode
+      const { hasPartOne, hasPartTwo } = isSolutionSource(source);
+      const isSolution = hasPartOne || hasPartTwo;
+
+      // For JSONL mode, emit initial state BEFORE running (enables streaming UI)
+      if (outputMode === 'jsonl') {
+        if (isSolution) {
+          const initial = createSolutionInitial(hasPartOne, hasPartTwo);
+          writeLine(initial);
+          writePatches([replacePatch('/status', 'running')]);
+          if (hasPartOne) {
+            writePatches([replacePatch('/part_one/status', 'running')]);
+          }
+          if (hasPartTwo) {
+            writePatches([replacePatch('/part_two/status', 'running')]);
+          }
+        } else {
+          const initial = createScriptInitial();
+          writeLine(initial);
+          writePatches([replacePatch('/status', 'running')]);
+        }
+      }
+
+      // Now run the code
       const result = run(source, io);
 
       if (outputMode === 'text') {
@@ -235,25 +258,17 @@ if (args.includes('-r') || args.includes('--repl')) {
         console.log(JSON.stringify(output));
         process.exit(0);
       } else {
-        // JSONL output
+        // JSONL output - emit completion patches (initial state already emitted above)
         const consoleEntries = disableConsoleCapture();
-        const { hasPartOne, hasPartTwo } = isSolutionSource(source);
-        const isSolution = hasPartOne || hasPartTwo;
+
+        // Emit console entries
+        for (const entry of consoleEntries) {
+          writePatches([addPatch('/console/-', entry)]);
+        }
 
         if (isSolution) {
-          // Solution streaming
-          const initial = createSolutionInitial(hasPartOne, hasPartTwo);
-          writeLine(initial);
-          writePatches([replacePatch('/status', 'running')]);
-
-          // Emit console entries
-          for (const entry of consoleEntries) {
-            writePatches([addPatch('/console/-', entry)]);
-          }
-
           // Emit part results
           if ('partOne' in result && result.partOne && hasPartOne) {
-            writePatches([replacePatch('/part_one/status', 'running')]);
             writePatches([
               replacePatch('/part_one/status', 'complete'),
               replacePatch('/part_one/value', result.partOne.value),
@@ -262,7 +277,6 @@ if (args.includes('-r') || args.includes('--repl')) {
           }
 
           if ('partTwo' in result && result.partTwo && hasPartTwo) {
-            writePatches([replacePatch('/part_two/status', 'running')]);
             writePatches([
               replacePatch('/part_two/status', 'complete'),
               replacePatch('/part_two/value', result.partTwo.value),
@@ -272,17 +286,7 @@ if (args.includes('-r') || args.includes('--repl')) {
 
           writePatches([replacePatch('/status', 'complete')]);
         } else {
-          // Script streaming
-          const initial = createScriptInitial();
-          writeLine(initial);
-          writePatches([replacePatch('/status', 'running')]);
-
-          // Emit console entries
-          for (const entry of consoleEntries) {
-            writePatches([addPatch('/console/-', entry)]);
-          }
-
-          // Emit completion
+          // Script completion
           if ('value' in result) {
             writePatches([
               replacePatch('/status', 'complete'),
