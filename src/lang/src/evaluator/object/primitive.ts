@@ -801,7 +801,7 @@ export class Str implements ValueObj {
   }
 
   public replace(subject: Str, replacement: Str): Str {
-    return new Str(this.value.replace(new RegExp(subject.value, 'g'), replacement.value));
+    return new Str(this.value.split(subject.value).join(replacement.value));
   }
 
   public md5(): Str {

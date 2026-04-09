@@ -31,10 +31,6 @@ export class Environment {
   }
 
   public declareVariable(name: string, value: Obj, isMutable: boolean): Obj {
-    if (this.variables[name]) {
-      throw new Error(`Variable ${name} has already been declared`);
-    }
-
     this.variables[name] = { value, isMutable };
 
     return value;
