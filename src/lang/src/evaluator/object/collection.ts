@@ -1147,6 +1147,10 @@ export class Set {
   public remove(key: Obj): Obj {
     return new Set(this.items.remove(key));
   }
+
+  public first(): Obj | Nil {
+    return this.items.first() || NIL;
+  }
 }
 
 export class Range implements ValueObj {
@@ -1550,17 +1554,16 @@ export class Sequence implements ValueObj {
   private constructor(public items: Immutable.Seq.Indexed<Obj>) {}
 
   public static iterate(fn: (previous: Obj) => Obj, initial: Obj) {
-    return new Sequence(
-      Immutable.Seq(
-        (function* () {
-          let current = initial;
-          while (true) {
-            yield current;
-            current = fn(current);
-          }
-        })()
-      )
-    );
+    const iterable = {
+      [Symbol.iterator]: function* () {
+        let current = initial;
+        while (true) {
+          yield current;
+          current = fn(current);
+        }
+      },
+    };
+    return new Sequence(Immutable.Seq(iterable));
   }
 
   public inspect(): string {
@@ -1853,15 +1856,14 @@ export class Sequence implements ValueObj {
 
   public cycle(): Sequence {
     const items = this.items;
-    return new Sequence(
-      Immutable.Seq(
-        (function* () {
-          while (true) {
-            yield* items;
-          }
-        })()
-      )
-    );
+    const iterable = {
+      [Symbol.iterator]: function* () {
+        while (true) {
+          yield* items;
+        }
+      },
+    };
+    return new Sequence(Immutable.Seq(iterable));
   }
 
   public isImmutable(): boolean {
