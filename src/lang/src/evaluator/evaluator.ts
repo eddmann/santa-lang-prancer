@@ -222,11 +222,11 @@ const evalIfExpression = (node: AST.IfExpression, environment: O.Environment): O
   }
 
   if (condition.isTruthy()) {
-    return evalStatementsLoop(node.consequence.statements, environment);
+    return evalStatements(node.consequence.statements, environment);
   }
 
   if (node.alternative) {
-    return evalStatementsLoop(node.alternative.statements, environment);
+    return evalStatements(node.alternative.statements, environment);
   }
 
   return O.NIL;

@@ -93,7 +93,7 @@ export class Integer implements ValueObj {
       throw new Error('Operation only permitted for Integer values');
     }
 
-    return new Integer(this.value & value.value);
+    return new Integer(Number(BigInt(this.value) & BigInt(value.value)));
   }
 
   public bitOr(value: Obj): Integer {
@@ -101,7 +101,7 @@ export class Integer implements ValueObj {
       throw new Error('Operation only permitted for Integer values');
     }
 
-    return new Integer(this.value | value.value);
+    return new Integer(Number(BigInt(this.value) | BigInt(value.value)));
   }
 
   public bitXor(value: Obj): Integer {
@@ -109,7 +109,7 @@ export class Integer implements ValueObj {
       throw new Error('Operation only permitted for Integer values');
     }
 
-    return new Integer(this.value ^ value.value);
+    return new Integer(Number(BigInt(this.value) ^ BigInt(value.value)));
   }
 
   public bitShiftLeft(value: Obj): Integer {
@@ -117,7 +117,7 @@ export class Integer implements ValueObj {
       throw new Error('Operation only permitted for Integer values');
     }
 
-    return new Integer(this.value << value.value);
+    return new Integer(Number(BigInt(this.value) << BigInt(value.value)));
   }
 
   public bitShiftRight(value: Obj): Integer {
@@ -125,11 +125,11 @@ export class Integer implements ValueObj {
       throw new Error('Operation only permitted for Integer values');
     }
 
-    return new Integer(this.value >> value.value);
+    return new Integer(Number(BigInt(this.value) >> BigInt(value.value)));
   }
 
   public bitNot(): Integer {
-    return new Integer(~this.value);
+    return new Integer(Number(~BigInt(this.value)));
   }
 
   public inspect(): string {
