@@ -84,12 +84,12 @@ test('mutable let assignment', () => {
   expect(result).toEqual(new O.Integer(2));
 });
 
-test('unable to declare variable more than once', () => {
+test('variable shadowing', () => {
   const source = 'let x = 1; let x = 2;';
 
   const result = doEvaluate(source);
 
-  expect(result.inspect()).toEqual('Runtime error: Variable x has already been declared');
+  expect(result).toEqual(new O.Integer(2));
 });
 
 test('unable to assign variable which is not mutable', () => {
